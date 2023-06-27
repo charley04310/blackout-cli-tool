@@ -4,7 +4,11 @@ Blackout is a simple, fast, and lightweight CLI copilot for your daily tasks. It
 
 ## Installation
 
-Before using it, you need to generate an API key from [PawanOsman discord server](https://discord.pawan.krd/) at `#bot` channel by typing `/key`.
+Before using it, you need to generate an API key from [PawanOsman discord server](https://discord.pawan.krd/) at `#bot` channel by typing `/key`. By default PawnOsman allowing you to consume the API only with 1 ip address. So if you want to change your IP address, run the following command:
+
+```bash
+blackout --reset-ip
+```
 
 ## Requirements
 

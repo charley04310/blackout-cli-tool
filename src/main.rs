@@ -19,6 +19,9 @@ struct Cli {
     /// The path to the file to read
     #[arg(short, long, help = "The action you want to do")]
     action: Option<String>,
+    // Reset IP address
+    #[arg(short, long, help = "Reset your Ip address")]
+    reset_ip: bool,
 }
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -27,8 +30,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Getting the API key from the environment
     let api_key = initialize_config()?;
 
+    if args.reset_ip {
+        reset_ip_adress(&api_key).await?;
+        return Ok(());
+    }
 
-    // We must have at least technology and question
+    // If user doesn't want to reset Ip. He  must have at least have technology and question
     let result = match (args.technology.as_deref(), args.action.as_deref()) {
         (Some(technology), Some(action)) => {
             // Constructing the message using technology and question
@@ -88,6 +95,28 @@ async fn send_curl_request(api_key: &str, message: &str) -> Result<(), Box<dyn s
         println!(" {} ", block);
         println!("{}", light::HORIZONTAL.repeat(block.len() + 2));
     }
+
+    Ok(())
+}
+
+async fn reset_ip_adress(api_key: &str) -> Result<(), Box<dyn std::error::Error>> {
+
+
+    let client = Client::new();
+    let url = "https://api.pawan.krd/resetip";
+
+
+    let response = client
+        .post(url)
+        .header("Authorization", format!("Bearer {}", api_key))
+        .header("Content-Type", "application/json")
+        .send()
+        .await?;
+
+    let response_text = response.text().await?;
+
+
+    println!("{}", response_text);
 
     Ok(())
 }
