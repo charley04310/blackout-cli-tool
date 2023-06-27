@@ -1,5 +1,6 @@
 use box_drawing::light;
 use clap::Parser;
+use colored::Colorize;
 use directories::ProjectDirs;
 use reqwest::Client;
 use serde_json::json;
@@ -10,7 +11,11 @@ use std::path::Path;
 
 /// Search for a pattern in a file and display the lines that contain it.
 #[derive(Parser)]
-#[command(author, version, about, long_about = "Blackout is a tool that helps you to remember CLI commands"
+#[command(
+    author,
+    version,
+    about,
+    long_about = "Blackout is a powerful OPEN SOURCE tool designed to assist you in remembering and managing CLI commands and code snippets. \n"
 )] // Read from `Cargo.toml`
 struct Cli {
     /// The pattern to look for
@@ -39,10 +44,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let result = match (args.technology.as_deref(), args.action.as_deref()) {
         (Some(technology), Some(action)) => {
             // Constructing the message using technology and question
-            let message = format!("You are an expert in computer science. Give me the code me using {} how to {}. Have short answer with only code example", technology, action);
+            let message = format!("You are an expert in computer science.Your mission is to give me the code using {} how to {}. Have short answer with only code snippet(s) example", technology, action);
 
             // // Sending the cURL request to the API
-            send_curl_request(&api_key, &message).await?;
+            send_curl_request(&api_key, &message, &technology, &action).await?;
 
             Ok(())
         }
@@ -58,7 +63,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-async fn send_curl_request(api_key: &str, message: &str) -> Result<(), Box<dyn std::error::Error>> {
+async fn send_curl_request(
+    api_key: &str,
+    message: &str,
+    technology: &str,
+    action: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
     let client = Client::new();
     let url = "https://api.pawan.krd/unfiltered/v1/chat/completions";
 
@@ -89,22 +99,24 @@ async fn send_curl_request(api_key: &str, message: &str) -> Result<(), Box<dyn s
 
     let code_blocks = extract_code_blocks(&response_text);
 
-
-    for block in code_blocks {
-        println!("{}", light::HORIZONTAL.repeat(block.len() + 2));
-        println!(" {} ", block);
-        println!("{}", light::HORIZONTAL.repeat(block.len() + 2));
-    }
+    println!(
+        "Technology: {} | Action: {}",
+        technology.yellow().bold(),
+        action.green(),
+    );
+    println!(
+        "{}\n{}\n{}",
+        light::HORIZONTAL,
+        code_blocks.join("\n"),
+        light::HORIZONTAL
+    );
 
     Ok(())
 }
 
 async fn reset_ip_adress(api_key: &str) -> Result<(), Box<dyn std::error::Error>> {
-
-
     let client = Client::new();
     let url = "https://api.pawan.krd/resetip";
-
 
     let response = client
         .post(url)
@@ -114,7 +126,6 @@ async fn reset_ip_adress(api_key: &str) -> Result<(), Box<dyn std::error::Error>
         .await?;
 
     let response_text = response.text().await?;
-
 
     println!("{}", response_text);
 
@@ -127,25 +138,25 @@ fn extract_code_blocks(json_response: &str) -> Vec<String> {
         .as_str()
         .unwrap();
 
-    let mut code_blocks: Vec<_> = Vec::new();
-    let lines = content.lines();
-
+    let mut code_blocks: Vec<String> = Vec::new();
     let mut in_code_block = false;
     let mut code_block = String::new();
 
-    for line in lines {
+    for line in content.lines() {
         if line.starts_with("```") {
             if in_code_block {
-                in_code_block = false;
                 code_blocks.push(code_block.trim().to_string());
                 code_block.clear();
-            } else {
-                in_code_block = true;
             }
+            in_code_block = !in_code_block;
         } else if in_code_block {
             code_block.push_str(line);
             code_block.push('\n');
         }
+    }
+
+    if code_blocks.is_empty() {
+        println!("No code block found in the response.");
     }
 
     code_blocks
@@ -169,7 +180,7 @@ fn initialize_config() -> Result<String, Box<dyn std::error::Error>> {
     if !hook_path_exists {
         fs::create_dir_all(&config_dir)?;
 
-        println!("Welcome to BLACKOUT Tool! Enter your API key:");
+        println!("Welcome to BLACKOUT Tool ! Please provide your API key:");
         io::stdin().read_line(&mut api_key)?;
 
         let mut file = fs::File::create(&config_path)?;
@@ -180,7 +191,6 @@ fn initialize_config() -> Result<String, Box<dyn std::error::Error>> {
         // Retrieve the API key from the configuration file
         api_key = read_api_key(&config_path.to_string_lossy())?;
     }
-
     Ok(api_key)
 }
 
