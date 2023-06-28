@@ -40,21 +40,6 @@ Moove the binary to `/usr/local/bin`:
 $ sudo mv target/release/blackout /usr/local/bin/blackout
 ```
 
-Update your `.bashrc` file:
-```bash
-nano ~/.bashrc
-```
-
-Add the following line:
-```bash
-alias blackout='/usr/local/bin/blackout'
-```
-
-Save and exit the file, then run:
-```bash
-$ source ~/.bashrc
-```
-
 ## Usage
 
 To get help about the commands, you can use the `--help` flag:
