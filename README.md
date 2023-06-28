@@ -2,6 +2,10 @@
 
 Blackout is a simple, fast, and lightweight CLI copilot for your daily tasks. It's written in Rust and uses [PawanOsman](https://github.com/PawanOsman/ChatGPT#self-host-your-own-api) API as Large Language Model services.
 
+  <p align="center">
+      <img src="/img/black-out.jpg" alt="blackout" height="400">
+  </p>
+
 ## Installation
 
 Before using it, you need to generate an API key from [PawanOsman discord server](https://discord.pawan.krd/) at `#bot` channel by typing `/key`. By default PawnOsman allowing you to consume the API only with 1 ip address. So if you want to change your IP address, run the following command:
@@ -15,23 +19,40 @@ blackout --reset-ip
 - [Rust](https://www.rust-lang.org/tools/install)
 - [PawanOsman API key](https://discord.pawan.krd/)
 
-## Features
-
-- [v] add api key
-- [v] get hint for commands line
-
 ## Run using Cargo
 
 When you have installed **Rust and generated an API key**, you can run Blackout using Cargo:
 
 ```bash
-$ cargo run
+$ cargo run -- --help
 ```
 
 ## Build using Cargo
 
+When you have installed **Rust and generated an API key**, you can run start building Blackout using Cargo:
+
 ```bash
 $ cargo build --release
+```
+
+Moove the binary to `/usr/local/bin`:
+```bash
+$ sudo mv target/release/blackout /usr/local/bin/blackout
+```
+
+Update your `.bashrc` file:
+```bash
+nano ~/.bashrc
+```
+
+Add the following line:
+```bash
+alias blackout='/usr/local/bin/blackout'
+```
+
+Save and exit the file, then run:
+```bash
+$ source ~/.bashrc
 ```
 
 ## Usage

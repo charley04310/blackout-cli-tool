@@ -47,7 +47,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let message = format!("You are an expert in computer science.Your mission is to give me the code using {} how to {}. Have short answer with only code snippet(s) example", technology, action);
 
             // // Sending the cURL request to the API
-            send_curl_request(&api_key, &message, &technology, &action).await?;
+            send_curl_request(&api_key, &message, technology, action).await?;
 
             Ok(())
         }
@@ -62,7 +62,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     Ok(())
 }
-
 async fn send_curl_request(
     api_key: &str,
     message: &str,
@@ -97,21 +96,56 @@ async fn send_curl_request(
 
     let response_text = response.text().await?;
 
-    let code_blocks = extract_code_blocks(&response_text);
+    let response: Result<Value, serde_json::Error> = serde_json::from_str(&response_text);
 
-    println!(
-        "Technology: {} | Action: {}",
-        technology.yellow().bold(),
-        action.green(),
-    );
-    println!(
-        "{}\n{}\n{}",
-        light::HORIZONTAL,
-        code_blocks.join("\n"),
-        light::HORIZONTAL
-    );
+    if let Ok(response_value) = response {
+        // Catch if there is 'error' attribute in response
+        if let Err(error) = handle_error(&response_value) {
+            println!("{}", error);
+            return Ok(()); // Return early in case of an error
+        }
 
-    Ok(())
+        let code_blocks = extract_code_blocks(&response_text);
+
+        // Case of no code were found
+        if code_blocks.is_empty() {
+            Ok(())
+        } else {
+            println!(
+                "Technology: {} | Action: {}",
+                technology.yellow().bold(),
+                action.green(),
+            );
+            println!(
+                "{}\n{}\n{}",
+                light::HORIZONTAL,
+                code_blocks.join("\n"),
+                light::HORIZONTAL
+            );
+            Ok(())
+        }
+    } else {
+        println!("Error occurred while parsing JSON response.");
+        Ok(())
+    }
+}
+
+fn handle_error(response_value: &Value) -> Result<(), String> {
+    if let Some(error) = response_value.get("error") {
+        // Handle the error case
+        let error_message = error["message"].as_str().unwrap_or("Unknown error");
+        if error_message.contains("Your API key is not allowed") {
+            return Err(format!(
+                "Your API key is not allowed, please use: {} to reset your IP address",
+                "'blackout --reset-ip'".green().italic()
+            ));
+        } else {
+            return Err(format!("Error: {}", error_message));
+        }
+    } else {
+        // No error, return Ok(())
+        Ok(())
+    }
 }
 
 async fn reset_ip_adress(api_key: &str) -> Result<(), Box<dyn std::error::Error>> {
@@ -126,40 +160,15 @@ async fn reset_ip_adress(api_key: &str) -> Result<(), Box<dyn std::error::Error>
         .await?;
 
     let response_text = response.text().await?;
+    let response_value: Value = serde_json::from_str(&response_text)?;
 
-    println!("{}", response_text);
+    if let Some(_message) = response_value.get("message") {
+        println!("Your IP reset: {}", "successfully!".green());
+    } else {
+        println!("No message found in the response.");
+    }
 
     Ok(())
-}
-
-fn extract_code_blocks(json_response: &str) -> Vec<String> {
-    let response: Value = serde_json::from_str(json_response).unwrap();
-    let content = response["choices"][0]["message"]["content"]
-        .as_str()
-        .unwrap();
-
-    let mut code_blocks: Vec<String> = Vec::new();
-    let mut in_code_block = false;
-    let mut code_block = String::new();
-
-    for line in content.lines() {
-        if line.starts_with("```") {
-            if in_code_block {
-                code_blocks.push(code_block.trim().to_string());
-                code_block.clear();
-            }
-            in_code_block = !in_code_block;
-        } else if in_code_block {
-            code_block.push_str(line);
-            code_block.push('\n');
-        }
-    }
-
-    if code_blocks.is_empty() {
-        println!("No code block found in the response.");
-    }
-
-    code_blocks
 }
 
 fn read_api_key(config_path: &str) -> Result<String, Box<dyn std::error::Error>> {
@@ -178,9 +187,13 @@ fn initialize_config() -> Result<String, Box<dyn std::error::Error>> {
     let mut api_key: String = String::new();
 
     if !hook_path_exists {
-        fs::create_dir_all(&config_dir)?;
+        fs::create_dir_all(config_dir)?;
 
-        println!("Welcome to BLACKOUT Tool ! Please provide your API key:");
+        println!(
+            "Welcome to {} Tool ! Please provide your (#PawanOsman) API key:",
+            "BLACKOUT".red().bold()
+        );
+
         io::stdin().read_line(&mut api_key)?;
 
         let mut file = fs::File::create(&config_path)?;
@@ -192,6 +205,47 @@ fn initialize_config() -> Result<String, Box<dyn std::error::Error>> {
         api_key = read_api_key(&config_path.to_string_lossy())?;
     }
     Ok(api_key)
+}
+
+fn extract_code_blocks(json_response: &str) -> Vec<String> {
+    let response: Result<Value, serde_json::Error> = serde_json::from_str(json_response);
+
+    if let Ok(response_value) = response {
+        if let Err(error) = handle_error(&response_value) {
+            println!("{}", error);
+            return Vec::new(); // Return an empty vector in case of an error
+        }
+
+        let content = response_value["choices"][0]["message"]["content"]
+            .as_str()
+            .unwrap();
+
+        let mut code_blocks: Vec<String> = Vec::new();
+        let mut in_code_block = false;
+        let mut code_block = String::new();
+
+        for line in content.lines() {
+            if line.starts_with("```") {
+                if in_code_block {
+                    code_blocks.push(code_block.trim().to_string());
+                    code_block.clear();
+                }
+                in_code_block = !in_code_block;
+            } else if in_code_block {
+                code_block.push_str(line);
+                code_block.push('\n');
+            }
+        }
+
+        if code_blocks.is_empty() {
+            println!("No code block found in the response.");
+        }
+
+        code_blocks
+    } else {
+        println!("Error occurred while parsing JSON response.");
+        Vec::new() // Return an empty vector in case of an error
+    }
 }
 
 // Here is CHATGTP Official client
